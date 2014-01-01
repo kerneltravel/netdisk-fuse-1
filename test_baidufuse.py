@@ -19,3 +19,10 @@ class BaiDuFuseTest(TestCase):
         self.assertThat(len(files), NotEquals(0))
         self.assertThat(files[0], Equals("."))
         self.assertThat(files[1], Equals(".."))
+
+    def test_get_disk_quote(self):
+        statfs = self.fuse.statfs(".")
+        print statfs
+        self.assertThat(statfs["f_bsize"], Equals(4096))
+        self.assertThat(statfs["f_blocks"], GreaterThan(0))
+        self.assertThat(statfs["f_bavail"], GreaterThan(0))

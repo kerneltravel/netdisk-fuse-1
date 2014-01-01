@@ -1,8 +1,8 @@
 import logging
-
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
-from baidupcs import PCS
 from sys import argv, exit
+
+from fuse import FUSE, Operations, LoggingMixIn
+from baidupcs import PCS
 
 
 class BaiDuFuse(LoggingMixIn, Operations):
@@ -11,7 +11,15 @@ class BaiDuFuse(LoggingMixIn, Operations):
         self.appdir = "/apps/" + basedir + "/"
 
     def statfs(self, path):
-        return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
+        disk_info = self.pcs.info().json()
+        bsize = 4096
+        total = disk_info['quota'] / bsize
+        used = disk_info['used'] / bsize
+        free = total - used
+
+        free_files = 1024
+        return dict(f_bsize=bsize, f_frsize=bsize, f_blocks=total, f_bavail=free, f_bfree=free,
+                    f_files=free_files, f_ffree=free_files, f_favail=free_files)
 
     def readdir(self, path, fh):
         response = self.pcs.list_files(self.appdir)
