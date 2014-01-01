@@ -1,7 +1,10 @@
+from errno import ENOENT
 import logging
+from os.path import *
+from stat import S_IFDIR, S_IFREG
 from sys import argv, exit
 
-from fuse import FUSE, Operations, LoggingMixIn
+from fuse import FUSE, Operations, LoggingMixIn, FuseOSError
 from baidupcs import PCS
 
 
@@ -22,13 +25,35 @@ class BaiDuFuse(LoggingMixIn, Operations):
                     f_files=free_files, f_ffree=free_files, f_favail=free_files)
 
     def readdir(self, path, fh):
-        response = self.pcs.list_files(self.appdir)
+        dirpath = normpath(self.appdir + path)
+        filelist = self.pcs.list_files(dirpath).json()['list']
 
         files = ['.', '..']
-        for file in response.json()['list']:
-            files.append(file['path'].replace(self.appdir, ''))
+        for file in filelist:
+            files.append(basename(file['path']))
 
         return files
+
+    def getattr(self, path, fh=None):
+        print path
+
+        dir_attr = dict(st_mode=(S_IFDIR | 0755), st_nlink=2)
+        if path == '/':
+            return dir_attr
+
+        filelist = self.pcs.list_files(normpath(self.appdir + dirname(path))).json()['list']
+
+        for file in filelist:
+            file_path = file['path']
+            if file_path != normpath(self.appdir + "/" + path):
+                continue
+
+            if file['isdir'] == 1:
+                return dir_attr
+
+            return dict(st_mode=(S_IFREG | 0777), st_nlink=1, st_size=file['size'])
+
+        raise FuseOSError(ENOENT)
 
 
 if __name__ == '__main__':
